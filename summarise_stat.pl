@@ -103,7 +103,7 @@ sub scan_file
 	{
 		chomp;
 
-		if (m/File format not recognized/)
+		if (m/File format not recogni[sz]ed/)
 		{
 			$res{not_exe} = 1;
 		}
