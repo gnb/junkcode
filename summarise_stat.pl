@@ -178,7 +178,10 @@ foreach my $path (@pathnames)
 	scan_path($path);
 }
 
+if ( !$total )
 {
+    printf "No files found.\n";
+    exit;
 }
 
 # generate a summary
