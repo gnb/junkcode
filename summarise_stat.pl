@@ -29,11 +29,35 @@ use strict;
 use warnings;
 
 my @pathnames;		# file and directories to read, from the commandline
-my @results;		# array of { path, used32, used64, not_exe, no_perm } hashes
+my @summ;
+my $total = 0;
 my $debug = 0;
 
 # Parse arguments
 @pathnames = @ARGV;
+
+my @status_strings =
+(
+	"cannot be read (permission denied)",
+	"are scripts (shell, perl, whatever)",
+	"are 64-bit executables",
+	"don't use any stat() family calls at all",
+	"use 32-bit stat() family interfaces only",
+	"use 64-bit stat64() family interfaces only",
+	"use both 32-bit and 64-bit stat() family interfaces",
+);
+
+sub MAX_STATUS { return 6 };
+sub status
+{
+	my ($r) = @_;
+	return 0 if ($r->{no_perm});
+	return 1 if ($r->{not_exe});
+	return 2 if ($r->{elf64b});
+	return 3 + ($r->{used64} ? 2 : 0) + ($r->{used32} ? 1 : 0);
+}
+
+map { $summ[$_] = 0 } (0..MAX_STATUS);
 
 # Function to scan a file
 sub scan_file
@@ -43,7 +67,6 @@ sub scan_file
 
 	my %res =
 	(
-		path => $path,
 		elf64b => 0,
 		used32 => 0,
 		used64 => 0,
@@ -86,7 +109,12 @@ sub scan_file
 		}
 	}
 	close $fh;
-	push(@results, \%res);
+
+	print "$res{used32} $res{used64} $res{not_exe} $res{no_perm} $res{elf64b} $path\n" if $debug;
+
+	my $s = status(\%res);
+	$summ[$s]++;
+	$total++;
 }
 
 # Function to scan a directory
@@ -125,58 +153,16 @@ foreach my $path (@pathnames)
 	scan_path($path);
 }
 
-my @status_strings =
-(
-	"cannot be read (permission denied)",
-	"are scripts (shell, perl, whatever)",
-	"are 64-bit executables",
-	"don't use any stat() family calls at all",
-	"use 32-bit stat() family interfaces only",
-	"use 64-bit stat64() family interfaces only",
-	"use both 32-bit and 64-bit stat() family interfaces",
-);
-
-sub MAX_STATUS { return 6 };
-sub status
 {
-	my ($r) = @_;
-	return 0 if ($r->{no_perm});
-	return 1 if ($r->{not_exe});
-	return 2 if ($r->{elf64b});
-	return 3 + ($r->{used64} ? 2 : 0) + ($r->{used32} ? 1 : 0);
 }
 
-# Function to generate a summary
-sub emit_summary
+# generate a summary
+print "Summary by status\n";
+print "-----------------\n";
+foreach my $s (0..MAX_STATUS)
 {
-	my @summ;
-	my $total = 0;
-
-	foreach my $r (@results)
-	{
-		my $s = status($r);
-		$summ[$s] = 0 unless defined $summ[$s];
-		$summ[$s]++;
-		$total++;
-	}
-
-	foreach my $s (0..MAX_STATUS)
-	{
-		next unless defined $summ[$s];
-		printf "%7d %4.1f%% %s\n",
-			$summ[$s], (100.0 * $summ[$s] / $total), $status_strings[$s];
-	}
+	next if $summ[$s] == 0;
+	printf "%7d %4.1f%% %s\n",
+		$summ[$s], (100.0 * $summ[$s] / $total), $status_strings[$s];
 }
-
-# Function to dump raw data
-sub emit_raw
-{
-	foreach my $r (@results)
-	{
-		print "$r->{used32} $r->{used64} $r->{not_exe} $r->{no_perm} $r->{path}\n";
-	}
-}
-
-emit_raw if $debug;
-emit_summary;
 
