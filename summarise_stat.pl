@@ -30,8 +30,10 @@ use warnings;
 
 my @pathnames;		# file and directories to read, from the commandline
 my @summ;
+my $nbroken = 0;
 my $total = 0;
 my $debug = 0;
+my @broken_by_status;
 
 # Parse arguments
 @pathnames = @ARGV;
@@ -46,6 +48,15 @@ my @status_strings =
 	"use 64-bit stat64() family interfaces only",
 	"use both 32-bit and 64-bit stat() family interfaces",
 );
+my @status_broken = (
+	0,
+	0,
+	0,
+	0,
+	1,
+	0,
+	1
+);
 
 sub MAX_STATUS { return 6 };
 sub status
@@ -58,6 +69,7 @@ sub status
 }
 
 map { $summ[$_] = 0 } (0..MAX_STATUS);
+map { $broken_by_status[$_] = [] } (0..MAX_STATUS);
 
 # Function to scan a file
 sub scan_file
@@ -113,6 +125,11 @@ sub scan_file
 	print "$res{used32} $res{used64} $res{not_exe} $res{no_perm} $res{elf64b} $path\n" if $debug;
 
 	my $s = status(\%res);
+	if ($status_broken[$s])
+	{
+	    push(@{$broken_by_status[$s]}, $path);
+	    $nbroken++;
+	}
 	$summ[$s]++;
 	$total++;
 }
@@ -162,7 +179,23 @@ print "-----------------\n";
 foreach my $s (0..MAX_STATUS)
 {
 	next if $summ[$s] == 0;
-	printf "%7d %4.1f%% %s\n",
-		$summ[$s], (100.0 * $summ[$s] / $total), $status_strings[$s];
+	printf "%7d %4.1f%% %s%s\n",
+		$summ[$s], (100.0 * $summ[$s] / $total), $status_strings[$s],
+		($status_broken[$s] ? " [BROKEN]" : "");
 }
+printf "%7d %4.1f%% BROKEN\n",
+	$nbroken, (100.0 * $nbroken / $total);
 
+# list all broken files
+if ($nbroken)
+{
+	print "List of broken files\n";
+	print "--------------------\n";
+	foreach my $s (0..MAX_STATUS)
+	{
+		next if !$status_broken[$s];
+		next if !scalar(@{$broken_by_status[$s]});
+		printf "These %s\n", $status_strings[$s];
+		map { printf "    %s\n", $_; } @{$broken_by_status[$s]};
+	}
+}
