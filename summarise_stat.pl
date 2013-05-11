@@ -8,6 +8,8 @@
 # Copyright (c) 2007 Silicon Graphics, Inc.  All Rights Reserved.
 # By Greg Banks <gnb@melbourne.sgi.com>
 #
+# Updated 20130511 to correctly diagnose 64b executables
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -38,15 +40,27 @@ sub scan_file
 {
 	my ($path) = @_;
 	my $fh;
-	
+
 	my %res =
 	(
 		path => $path,
+		elf64b => 0,
 		used32 => 0,
 		used64 => 0,
 		not_exe => 0,
 		no_perm => 0,
 	);
+
+	open $fh,'-|', "file -L \"$path\" 2>&1"
+		or return;
+	$_ = readline $fh;
+	chomp;
+	if (m/ELF 64-bit/)
+	{
+		$res{elf64b} = 1;
+	}
+	close $fh;
+	$fh = undef;
 
 	open $fh,'-|', "nm -uD \"$path\" 2>&1"
 		or return;
@@ -115,19 +129,21 @@ my @status_strings =
 (
 	"cannot be read (permission denied)",
 	"are scripts (shell, perl, whatever)",
+	"are 64-bit executables",
 	"don't use any stat() family calls at all",
 	"use 32-bit stat() family interfaces only",
 	"use 64-bit stat64() family interfaces only",
 	"use both 32-bit and 64-bit stat() family interfaces",
 );
 
-sub MAX_STATUS { return 5 };
+sub MAX_STATUS { return 6 };
 sub status
 {
 	my ($r) = @_;
 	return 0 if ($r->{no_perm});
 	return 1 if ($r->{not_exe});
-	return 2 + ($r->{used64} ? 2 : 0) + ($r->{used32} ? 1 : 0);
+	return 2 if ($r->{elf64b});
+	return 3 + ($r->{used64} ? 2 : 0) + ($r->{used32} ? 1 : 0);
 }
 
 # Function to generate a summary
