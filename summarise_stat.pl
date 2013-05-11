@@ -3,7 +3,7 @@
 # A Perl script for evaluating and summarising which executables in
 # the given directories depend on the old 32-bit stat() family APIs.
 #
-# Usage: summariese-stat64.pl directory [...]
+# Usage: summarise_stat.pl directory [...]
 #
 # Copyright (c) 2007 Silicon Graphics, Inc.  All Rights Reserved.
 # By Greg Banks <gnb@melbourne.sgi.com>
