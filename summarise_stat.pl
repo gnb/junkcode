@@ -154,6 +154,14 @@ sub scan_path
 {
 	my ($path) = @_;
 	print "scan_path($path)\n" if $debug;
+	if ( -l $path )
+	{
+	    # Ignore symlinks to files
+	    return if ( -f $path );
+	    # Follow symlinks to directories, but avoid deep recursion
+	    # on silly compatibility symlinks like /usr/bin/X11 -> .
+	    return if ( readlink($path) eq "." );
+	}
 	if ( -d $path )
 	{
 		scan_directory($path);
