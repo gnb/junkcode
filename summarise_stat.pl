@@ -5,7 +5,7 @@
 #
 # Usage: summarise_stat.pl directory [...]
 #
-# Copyright (c) 2007 Silicon Graphics, Inc.  All Rights Reserved.
+# Copyright (c) 2007,2013 Silicon Graphics, Inc.  All Rights Reserved.
 # By Greg Banks <gnb@melbourne.sgi.com>
 #
 # Updated 20130511 to correctly diagnose 64b executables
